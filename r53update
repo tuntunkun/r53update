@@ -1,0 +1,241 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# R53Update Dynamic DNS Updater v0.1.0
+# (C)2014 Takuya Sawada All rights reserved.
+#
+# @author Takuya Sawada <takuya@tuntunkun.com>
+#
+from boto.route53.connection import Route53Connection
+from boto.route53.record import ResourceRecordSets
+from botocore.session import Session
+
+import sys
+import argparse
+import urllib2
+import dns.resolver
+import dns.exception
+import logging
+import logging.handlers
+
+try:
+	import argcomplete
+	has_autocomplete = True
+except:
+	has_autocomplete = False
+
+## 
+# Application Framework
+class App(object):
+	class ArgumentParser(argparse.ArgumentParser):
+		def error(self, message):
+			self._print_message('[31merror: %s[0m\n\n' % message)
+			self.print_help()
+			sys.exit(2)
+
+		def _print_message(self, message, file=None):
+			if message:
+				sys.stderr.write(message)
+
+	class VersionAction(argparse.Action):
+		def __init__(
+			self, option_strings, version_callback,
+			dest=argparse.SUPPRESS,
+			default=argparse.SUPPRESS,
+			help="show program's version number and exit"):
+
+			super(App.VersionAction, self).__init__(
+				option_strings=option_strings,
+				dest=dest,
+				default=default,
+				nargs=0,
+				help=help)
+
+			self.__version_callback = version_callback
+	
+		def __call__(self, parser, namespace, values, option_string=None):
+			self.__version_callback()
+			sys.exit(0)
+
+	def __init__(self, argv):
+		self.__argv = argv
+		self.logger = logging.getLogger(self.__argv[0])
+
+	def _pre_init(self):
+		self._parser = App.ArgumentParser()
+		self._parser.add_argument('-v', '--version', action=App.VersionAction,
+			version_callback=self.show_version, help='show version info')
+
+	def _post_init(self, opts):
+		pass
+
+	def _init(self):
+		self._pre_init()
+
+		if has_autocomplete:
+			# eval "$(register-python-argcomplete r53update)"
+			# Ref) https://pypi.python.org/pypi/argcomplete
+			argcomplete.autocomplete(self._parser)
+
+		opts = self._parser.parse_args(self.__argv[1:])
+		self._post_init(opts)
+
+	def _run(self):
+		pass
+
+	def show_version(self):
+		pass
+
+	def show_usage(self):
+		self._parser.print_help()
+
+	def __call__(self):
+		try:
+			self._init()
+			self._run()
+		except Exception, e:
+			print >>sys.stderr, "[31m%s[0m" % e
+			sys.exit(1)
+
+##
+# Application Implementation
+class R53UpdateApp(App):
+	##
+	# Context
+	class Context(object):
+		def __init__(self, profile=''):
+			self.session = Session()
+			self.session.profile = profile
+	
+		def getR53Connection(self):
+			return Route53Connection(
+				self.session.get_config_variable('access_key'),
+				self.session.get_config_variable('secret_key'))
+
+	##
+	# Argument Completer
+	class ProfileCompleter(object):
+		def __init__(self, parent):
+			self.__parent = parent
+		
+		def __call__(self, prefix, **kwargs):
+			profiles = self.__parent.ctx.session.available_profiles
+			return (x for x in profiles if x.startswith(prefix))
+
+	def _pre_init(self):
+		super(R53UpdateApp, self)._pre_init()
+		self.ctx = R53UpdateApp.Context()
+		
+		# initialize logger
+		self.logger.setLevel(logging.INFO)
+
+		self._formatter = logging.Formatter(
+			fmt='%(name)s[%(process)d]: [%(levelname)s] %(message)s',
+			datefmt='%Y/%m/%d %p %I:%M:%S'
+		)
+
+		handler = logging.StreamHandler(sys.stderr)
+		handler.setFormatter(self._formatter)
+		self.logger.addHandler(handler)
+
+		# optional argument
+		self._parser.add_argument('--profile', type=str, metavar='PROFILE', default='',
+			help='プロファイル名').completer = R53UpdateApp.ProfileCompleter(self)
+		self._parser.add_argument('--dns', nargs='+', type=str, metavar='DNS',
+			default=['8.8.8.8', '8.8.4.4'], help='default: 8.8.8.8, 8.8.4.4')
+		self._parser.add_argument('--ttl', type=int, metavar='TTL',
+			default=300, help='default: 300')
+		self._parser.add_argument('--syslog', action='store_true')
+		self._parser.add_argument('--debug', action='store_true')
+
+		# positional argument
+		self._parser.add_argument('host', type=str, metavar='HOST', help='ex) www')
+		self._parser.add_argument('zone', type=str, metavar='ZONE', help='ex) fqdn.tld')
+
+	def _post_init(self, opts):
+		super(R53UpdateApp, self)._post_init(opts)
+		self.ctx.session.profile = opts.profile
+		self._opts = opts
+
+		if opts.syslog:
+			handler = logging.handlers.SysLogHandler(address='/dev/log')
+			handler.setFormatter(self._formatter)
+			self.logger.addHandler(handler)
+
+		if opts.debug:
+			self.logger.setLevel(logging.DEBUG)
+
+	def __get_global_ip(self):
+		return urllib2.urlopen("http://ifconfig.me/ip").read().rstrip()
+
+	def __get_records_from_host(self, fqdn):
+		resolver = dns.resolver.Resolver()
+		resolver.nameservers = self._opts.dns
+		results = []
+	
+		try:
+			response = resolver.query(fqdn, 'A')
+			results = map(lambda x: x.to_text(), response)
+		except dns.resolver.NXDOMAIN:
+			pass
+		except dns.resolver.Timeout:
+			raise
+		except dns.exception.DNSException:
+			raise
+		
+		return results
+
+	##
+	# Ref) https://gist.github.com/mariocesar/4142563
+	def __update_r53_record(self, zone_name, host_name, ip):
+		fqdn = '%s.%s' % (host_name, zone_name)
+
+		conn = self.ctx.getR53Connection()
+		zone = conn.get_zone(zone_name)
+
+		if zone is None:
+			raise Exception("zone '%s' not found" % zone_name)
+		self.logger.debug('R53 zoneid: %s' % zone.id)
+
+		changes = ResourceRecordSets(conn, zone.id, '')
+		change = changes.add_change('UPSERT', fqdn, 'A', self._opts.ttl)
+		change.add_value(ip)
+		changes.commit()
+
+		self.logger.info('update A records of \'%s\' with \'%s\'' % (fqdn, ip))
+
+	def _run(self):
+		fqdn = '%s.%s' % (self._opts.host, self._opts.zone)
+		self.logger.debug('fqdn: %s' % fqdn)
+
+		global_ip = self.__get_global_ip()
+		self.logger.debug('global ip: %s' % global_ip)
+
+		recs = self.__get_records_from_host(fqdn)
+		self.logger.debug('current a records: %s' % str(recs))
+
+		if not global_ip in recs or len(recs) > 1:
+			self.__update_r53_record(
+				self._opts.zone,
+				self._opts.host,
+				global_ip
+			)
+
+	def show_version(self):
+		print >>sys.stderr, "Copyrights (c)2014 Takuya Sawada All rights reserved."
+		print >>sys.stderr, "Route53Update Dynamic DNS Updater 0.1.0"
+
+##
+# DOCUMENT
+#
+# r53update [--profile PROFILE] [--dns DNS ...] [--ttl TTL] --zone ZONE --host HOST
+#
+
+if __name__ == '__main__':
+	try:
+		R53UpdateApp(sys.argv)()
+	except Exception, e:
+		print >>sys.stderr, "[31m%s[0m" % e
+		sys.exit(1)
+
+# vim: set nu ts=2 autoindent : #
