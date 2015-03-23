@@ -145,6 +145,7 @@ class R53UpdateApp(App):
 			default=['8.8.8.8', '8.8.4.4'], help='default: 8.8.8.8, 8.8.4.4')
 		self._parser.add_argument('--ttl', type=int, metavar='TTL',
 			default=300, help='default: 300')
+		self._parser.add_argument('--force', action='store_true')
 		self._parser.add_argument('--syslog', action='store_true')
 		self._parser.add_argument('--debug', action='store_true')
 
@@ -214,7 +215,7 @@ class R53UpdateApp(App):
 		recs = self.__get_records_from_host(fqdn)
 		self.logger.debug('current a records: %s' % str(recs))
 
-		if not global_ip in recs or len(recs) > 1:
+		if not global_ip in recs or len(recs) > 1 or self._opts.force:
 			self.__update_r53_record(
 				self._opts.zone,
 				self._opts.host,
