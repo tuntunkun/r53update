@@ -237,9 +237,6 @@ class R53UpdateApp(App):
 ##
 # DOCUMENT
 #
-# r53update [--profile PROFILE] [--dns DNS ...] [--ttl TTL] --zone ZONE --host HOST
-#
-
 if __name__ == '__main__':
 	try:
 		R53UpdateApp(sys.argv)()
