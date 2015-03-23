@@ -141,6 +141,22 @@ class R53UpdateApp(App):
 		def resolveGlobalIP(self):
 			return urllib2.urlopen(self._url).read().rstrip()
 
+	class DNS_GlobalIP_Resolver(GlobalIP_Resolver):
+		def __init__(self, app, hostname, resolvername):
+			super(R53UpdateApp.DNS_GlobalIP_Resolver, self).__init__(app)
+			self._hostname = hostname
+			self._resolvername = resolvername
+
+		def __resolveServerName(self, servername):
+			resolver = dns.resolver.Resolver()
+			resolver.nameservers = self._app._opts.dns
+			return map(lambda x: x.to_text(), resolver.query(servername, 'A'))
+
+		def resolveGlobalIP(self):
+			resolver = dns.resolver.Resolver()
+			resolver.nameservers = self.__resolveServerName(self._resolvername)
+			return resolver.query(self._hostname, 'A')[0].to_text()
+
 	def _pre_init(self):
 		super(R53UpdateApp, self)._pre_init()
 		self.ctx = R53UpdateApp.Context()
@@ -162,7 +178,7 @@ class R53UpdateApp(App):
 		self._gipresolvers['ifconfig.me'] = R53UpdateApp.HTTP_GlobalIP_Resolver(self, 'http://ifconfig.me/ip')
 		self._gipresolvers['ipecho.net'] = R53UpdateApp.HTTP_GlobalIP_Resolver(self, 'http://ipecho.net/plain')
 		self._gipresolvers['icanhazip.com'] = R53UpdateApp.HTTP_GlobalIP_Resolver(self, 'http://icanhazip.com')
-
+		self._gipresolvers['opendns.com'] = R53UpdateApp.DNS_GlobalIP_Resolver(self, 'myip.opendns.com', 'resolver1.opendns.com')
 
 		# optional argument
 		self._parser.add_argument('--profile', type=str, metavar='PROFILE', default='',
