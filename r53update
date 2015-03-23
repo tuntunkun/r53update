@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# R53Update Dynamic DNS Updater v0.1.0
+# R53Update Dynamic DNS Updater v0.1.1
 # (C)2014 Takuya Sawada All rights reserved.
 #
 # @author Takuya Sawada <takuya@tuntunkun.com>
@@ -109,8 +109,9 @@ class R53UpdateApp(App):
 	
 		def getR53Connection(self):
 			return Route53Connection(
-				self.session.get_config_variable('access_key'),
-				self.session.get_config_variable('secret_key'))
+				self.session.get_scoped_config()['aws_access_key_id'],
+				self.session.get_scoped_config()['aws_secret_access_key']
+			)
 
 	##
 	# Argument Completer
@@ -223,7 +224,7 @@ class R53UpdateApp(App):
 
 	def show_version(self):
 		print >>sys.stderr, "Copyrights (c)2014 Takuya Sawada All rights reserved."
-		print >>sys.stderr, "Route53Update Dynamic DNS Updater 0.1.0"
+		print >>sys.stderr, "Route53Update Dynamic DNS Updater 0.1.1"
 
 ##
 # DOCUMENT
