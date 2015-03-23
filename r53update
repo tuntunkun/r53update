@@ -160,6 +160,9 @@ class R53UpdateApp(App):
 		# create mapping of global ip resolvers
 		self._gipresolvers = dict()
 		self._gipresolvers['ifconfig.me'] = R53UpdateApp.HTTP_GlobalIP_Resolver(self, 'http://ifconfig.me/ip')
+		self._gipresolvers['ipecho.net'] = R53UpdateApp.HTTP_GlobalIP_Resolver(self, 'http://ipecho.net/plain')
+		self._gipresolvers['icanhazip.com'] = R53UpdateApp.HTTP_GlobalIP_Resolver(self, 'http://icanhazip.com')
+
 
 		# optional argument
 		self._parser.add_argument('--profile', type=str, metavar='PROFILE', default='',
