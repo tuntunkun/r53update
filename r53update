@@ -17,6 +17,7 @@ import dns.resolver
 import dns.exception
 import logging
 import logging.handlers
+import exceptions
 
 try:
 	import argcomplete
@@ -123,6 +124,39 @@ class R53UpdateApp(App):
 			profiles = self.__parent.ctx.session.available_profiles
 			return (x for x in profiles if x.startswith(prefix))
 
+	##
+	# Global IP Resolver
+	class GlobalIP_Resolver(object):
+		def __init__(self, app):
+			self._app = app
+
+		def resolveGlobalIP():
+			raise NotImplementedError()
+
+	class HTTP_GlobalIP_Resolver(GlobalIP_Resolver):
+		def __init__(self, app, url):
+			super(R53UpdateApp.HTTP_GlobalIP_Resolver, self).__init__(app)
+			self._url = url
+
+		def resolveGlobalIP(self):
+			return urllib2.urlopen(self._url).read().rstrip()
+
+	class DNS_GlobalIP_Resolver(GlobalIP_Resolver):
+		def __init__(self, app, hostname, resolvername):
+			super(R53UpdateApp.DNS_GlobalIP_Resolver, self).__init__(app)
+			self._hostname = hostname
+			self._resolvername = resolvername
+
+		def __resolveServerName(self, servername):
+			resolver = dns.resolver.Resolver()
+			resolver.nameservers = self._app._opts.dns
+			return map(lambda x: x.to_text(), resolver.query(servername, 'A'))
+
+		def resolveGlobalIP(self):
+			resolver = dns.resolver.Resolver()
+			resolver.nameservers = self.__resolveServerName(self._resolvername)
+			return resolver.query(self._hostname, 'A')[0].to_text()
+
 	def _pre_init(self):
 		super(R53UpdateApp, self)._pre_init()
 		self.ctx = R53UpdateApp.Context()
@@ -139,9 +173,18 @@ class R53UpdateApp(App):
 		handler.setFormatter(self._formatter)
 		self.logger.addHandler(handler)
 
+		# create mapping of global ip resolvers
+		self._gipresolvers = dict()
+		self._gipresolvers['ifconfig.me'] = R53UpdateApp.HTTP_GlobalIP_Resolver(self, 'http://ifconfig.me/ip')
+		self._gipresolvers['ipecho.net'] = R53UpdateApp.HTTP_GlobalIP_Resolver(self, 'http://ipecho.net/plain')
+		self._gipresolvers['icanhazip.com'] = R53UpdateApp.HTTP_GlobalIP_Resolver(self, 'http://icanhazip.com')
+		self._gipresolvers['opendns.com'] = R53UpdateApp.DNS_GlobalIP_Resolver(self, 'myip.opendns.com', 'resolver1.opendns.com')
+
 		# optional argument
 		self._parser.add_argument('--profile', type=str, metavar='PROFILE', default='',
 			help='プロファイル名').completer = R53UpdateApp.ProfileCompleter(self)
+		self._parser.add_argument('--resolver', type=str, metavar='RESOLVER',
+			default='opendns.com', help='グローバルIP 取得方法')
 		self._parser.add_argument('--dns', nargs='+', type=str, metavar='DNS',
 			default=['8.8.8.8', '8.8.4.4'], help='default: 8.8.8.8, 8.8.4.4')
 		self._parser.add_argument('--ttl', type=int, metavar='TTL',
@@ -169,7 +212,8 @@ class R53UpdateApp(App):
 			self.logger.setLevel(logging.DEBUG)
 
 	def __get_global_ip(self):
-		return urllib2.urlopen("http://ifconfig.me/ip").read().rstrip()
+		self.logger.debug('resolving global ip adreess with \'%s\'', self._opts.resolver)
+		return self._gipresolvers[self._opts.resolver].resolveGlobalIP()
 
 	def __get_records_from_host(self, fqdn):
 		resolver = dns.resolver.Resolver()
