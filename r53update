@@ -135,6 +135,15 @@ class R53UpdateApp(App):
 			return (x for x in profiles if x.startswith(prefix))
 
 	##
+	# Resolver Completer
+	class ResolverCompleter(object):
+		def __init__(self, parent):
+			self.__parent = parent
+
+		def __call__(self, prefix, **kwargs):
+			return (x for x in self.__parent._gipresolvers if x.startswith(prefix))
+
+	##
 	# Global IP Resolver
 	class GlobalIP_Resolver(object):
 		def __init__(self, app):
@@ -194,7 +203,7 @@ class R53UpdateApp(App):
 		self._parser.add_argument('--profile', type=str, metavar='PROFILE', default='',
 			help='プロファイル名').completer = R53UpdateApp.ProfileCompleter(self)
 		self._parser.add_argument('--resolver', type=str, metavar='RESOLVER',
-			default='opendns.com', help='グローバルIP 取得方法')
+			default='opendns.com', help='グローバルIP 取得方法').completer = R53UpdateApp.ResolverCompleter(self)
 		self._parser.add_argument('--dns', nargs='+', type=str, metavar='DNS',
 			default=['8.8.8.8', '8.8.4.4'], help='default: 8.8.8.8, 8.8.4.4')
 		self._parser.add_argument('--ttl', type=int, metavar='TTL',
