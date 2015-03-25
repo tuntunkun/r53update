@@ -328,9 +328,7 @@ class R53UpdateApp(App):
 		print >>sys.stderr, "Copyrights (c)2014 Takuya Sawada All rights reserved."
 		print >>sys.stderr, "Route53Update Dynamic DNS Updater 0.3.0"
 
-##
-# DOCUMENT
-#
+
 if __name__ == '__main__':
 	try:
 		R53UpdateApp(sys.argv)()
