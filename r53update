@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# R53Update Dynamic DNS Updater v0.4.1
+# R53Update Dynamic DNS Updater v0.4.2
 # (C)2014 Takuya Sawada All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -200,7 +200,7 @@ class R53UpdateApp(App):
 		self.logger.setLevel(logging.INFO)
 
 		self._formatter = logging.Formatter(
-			fmt='%(name)s[%(process)d]: [%(levelname)s] %(message)s',
+			fmt='%(name)s[%(process)d]: %(asctime)s; [%(levelname)s] %(message)s',
 			datefmt='%Y/%m/%d %p %I:%M:%S'
 		)
 
@@ -326,7 +326,7 @@ class R53UpdateApp(App):
 
 	def show_version(self):
 		print >>sys.stderr, "Copyrights (c)2014 Takuya Sawada All rights reserved."
-		print >>sys.stderr, "Route53Update Dynamic DNS Updater 0.4.1"
+		print >>sys.stderr, "Route53Update Dynamic DNS Updater 0.4.2"
 
 
 if __name__ == '__main__':
