@@ -175,15 +175,10 @@ class R53UpdateApp(App):
 			self._hostname = hostname
 			self._resolvername = resolvername
 
-		def __resolveServerName(self, servername):
+		def resolveGlobalIP(self, ns=False):
 			resolver = dns.resolver.Resolver()
-			resolver.nameservers = self._app._opts.dns
-			return map(lambda x: x.to_text(), resolver.query(servername, 'A'))
-
-		def resolveGlobalIP(self):
-			resolver = dns.resolver.Resolver()
-			resolver.nameservers = self.__resolveServerName(self._resolvername)
-			return resolver.query(self._hostname, 'A')[0].to_text()
+			resolver.nameservers = self._app._opts.dns if ns else self.resolveGlobalIP(True)
+			return map(lambda x: x.to_text(), resolver.query(self._resolvername if ns else self._hostname, 'A'))
 
 	class NETIFACES_GlobalIP_Resolver(GlobalIP_Resolver):
 		def __init__(self, app):
@@ -195,7 +190,7 @@ class R53UpdateApp(App):
 			except Exception as e:
 				raise Exception("%s: no inet address found" % self._app._opts.iface)
 
-			return inet[0]['addr']
+			return map(lambda x: x['addr'], inet)
 
 	def _pre_init(self):
 		super(R53UpdateApp, self)._pre_init()
@@ -264,7 +259,8 @@ class R53UpdateApp(App):
 
 	def __get_global_ip(self):
 		self.logger.debug('resolving global ip adreess with \'%s\'', self._opts.resolver)
-		return self._gipresolvers[self._opts.resolver].resolveGlobalIP()
+		gips = self._gipresolvers[self._opts.resolver].resolveGlobalIP()
+		return gips if type(gips) is list else [gips]
 
 	def __get_records_from_host(self, fqdn):
 		resolver = dns.resolver.Resolver()
@@ -285,7 +281,7 @@ class R53UpdateApp(App):
 
 	##
 	# Ref) https://gist.github.com/mariocesar/4142563
-	def __update_r53_record(self, zone_name, host_name, ip):
+	def __update_r53_record(self, zone_name, host_name, gips):
 		fqdn = '%s.%s' % (host_name, zone_name)
 
 		conn = self.ctx.getR53Connection()
@@ -297,7 +293,10 @@ class R53UpdateApp(App):
 
 		changes = ResourceRecordSets(conn, zone.id, '')
 		change = changes.add_change('UPSERT', fqdn, 'A', self._opts.ttl)
-		change.add_value(ip)
+
+		for gip in gips:
+			change.add_value(ip)
+
 		changes.commit()
 
 		self.logger.info('update A records of \'%s\' with \'%s\'' % (fqdn, ip))
@@ -306,19 +305,19 @@ class R53UpdateApp(App):
 		fqdn = '%s.%s' % (self._opts.host, self._opts.zone)
 		self.logger.debug('fqdn: %s' % fqdn)
 
-		global_ip = self.__get_global_ip()
-		self.logger.debug('global ip: %s' % global_ip)
+		gips = self.__get_global_ip()
+		self.logger.debug('global ips: %s' % str(gips))
 
-		recs = self.__get_records_from_host(fqdn)
-		self.logger.debug('current a records: %s' % str(recs))
+		arecs = self.__get_records_from_host(fqdn)
+		self.logger.debug('current a records: %s' % str(arecs))
 
-		if not global_ip in recs or len(recs) > 1 or self._opts.force:
+		if gips != arecs or self._opts.force:
 			if not self._opts.dry:
 				self.logger.debug('updating route53 zone info')
 				self.__update_r53_record(
 					self._opts.zone,
 					self._opts.host,
-					global_ip
+					gips
 				)
 			else:
 				self.logger.debug('updating route53 zone info (dry-run)')
