@@ -295,11 +295,11 @@ class R53UpdateApp(App):
 		change = changes.add_change('UPSERT', fqdn, 'A', self._opts.ttl)
 
 		for gip in gips:
-			change.add_value(ip)
+			change.add_value(gip)
 
 		changes.commit()
 
-		self.logger.info('update A records of \'%s\' with \'%s\'' % (fqdn, ip))
+		self.logger.info('update A records of \'%s\' with \'%s\'' % (fqdn, gip))
 
 	def _run(self):
 		fqdn = '%s.%s' % (self._opts.host, self._opts.zone)
