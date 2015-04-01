@@ -335,5 +335,3 @@ if __name__ == '__main__':
 	except Exception, e:
 		print >>sys.stderr, "[31m%s[0m" % e
 		sys.exit(1)
-
-# vim: set nu ts=2 autoindent : #
