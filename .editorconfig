@@ -9,6 +9,6 @@ insert_final_newline = true
 trim_trailling_whitespace = true
 charset = utf-8
 
-[r53update]
+[*.py]
 indent_style = tab
 indent_size = 2
