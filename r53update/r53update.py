@@ -329,9 +329,12 @@ class R53UpdateApp(App):
 		print >>sys.stderr, "Route53Update Dynamic DNS Updater 0.5.0"
 
 
-if __name__ == '__main__':
+def main():
 	try:
 		R53UpdateApp(sys.argv)()
 	except Exception, e:
 		print >>sys.stderr, "[31m%s[0m" % e
 		sys.exit(1)
+
+if __name__ == '__main__':
+	main()
