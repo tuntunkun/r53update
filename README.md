@@ -3,7 +3,7 @@
 R53Update is a command line utility for Amazon Route 53 which is one of the AWS (Amazon Web Services). This tools is useful to anyone who wants to operate server with dynamic IP. You can operate not only the server which is hosted on Amazon EC2 but also on-premise servers.
 
 
-[![GitHub version](https://badge.fury.io/gh/eternalharvest%2Fr53update.svg)]() [![Hex.pm](https://img.shields.io/hexpm/l/plug.svg)]()
+[![GitHub version](https://badge.fury.io/gh/tuntunkun%2Fr53update.svg)]() [![Hex.pm](https://img.shields.io/hexpm/l/plug.svg)]()
 
 
 ## Requirements
@@ -30,7 +30,7 @@ sudo yum -y install python{,-pip}
 ## Install
 
 ```bash
-sudo -H pip install git+https://github.com/eternalharvest/r53update
+sudo -H pip install git+https://github.com/tuntunkun/r53update
 ```
 
 ## Usage
