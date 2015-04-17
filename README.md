@@ -3,7 +3,7 @@
 R53Update is a command line utility for Amazon Route 53 which is one of the AWS (Amazon Web Services). This tools is useful to anyone who wants to operate server with dynamic IP. You can operate not only the server which is hosted on Amazon EC2 but also on-premise servers.
 
 
-[![GitHub version](https://badge.fury.io/gh/eternalharvest%2Fr53update.svg)]() [![Hex.pm](https://img.shields.io/hexpm/l/plug.svg)]()
+[![GitHub version](https://badge.fury.io/gh/tuntunkun%2Fr53update.svg)]() [![Hex.pm](https://img.shields.io/hexpm/l/plug.svg)]()
 
 
 ## Requirements
@@ -12,32 +12,55 @@ R53Update is a command line utility for Amazon Route 53 which is one of the AWS 
 * pre-configured Amazon Route53 hosted zone
 * python2.6+ and pip command
 
+### Amazon Route 53 hosted zone
 To create Amazon Route 53 hosted zone, please refer to the following url.  
 http://docs.aws.amazon.com/Route53/latest/DeveloperGuide/CreatingHostedZone.html
 
-To install python and pip command,
+### Python & PIP
+If you want to install python and pip via binary installer, you can generally do so through the basic package-management tool that comes with your distribution.
+If you're on Debian-based distribution, you can use apt-get:
 ```bash
-sudo apt-get install python{,-pip} build-essentials
+sudo apt-get install python{,-dev,-pip} build-essentials
 ```
 
-or
+If you're on a Redhat-based distribution like Fedora, CentOS, etc... try yum:
 ```bash
 sudo yum -y groupinstall "Development Tools"
-sudo yum -y install python{,-pip}
+sudo yum -y install python{,-devel,-pip}
 ```
 
 
 ## Install
 
 ```bash
-sudo -H pip install git+https://github.com/eternalharvest/r53update
+sudo -H pip install git+https://github.com/tuntunkun/r53update
 ```
 
 ## Usage
-
+If you have already configured AWS profile and Route 53 hosted zone, it is very simple to use.
 ```bash
 r53update www example.com
 ```
+
+### Configurable Variable
+
+| Variable  | Option     | Default    | Description                                 |
+|-----------|------------|------------|---------------------------------------------|
+| PROFILE   | --profile  | default    | profile name which is configured by aws-cli |
+| RESOLVER  | --resolver | localhost  | detection method of global IP               |
+| IFACE     | --iface    | n/a        | name of the network interface               |
+
+### The method of global IP detection
+You can specify the method of global IP detection by '--resolver' option.
+Available resolver is as follows.
+
+| Resolver Name | Method | Multiple IP   | Description                            |
+|---------------|--------|---------------|----------------------------------------|
+| opendns.com   | DNS    | not supported |                                        |
+| ifconfig.me   | HTTP   | not supported |                                        |
+| ipecho.net    | HTTP   | not supported |                                        |
+| icanhazip.com | HTTP   | not supported |                                        |
+| localhost     | NIC    | supported     | require '--iface' option               |  
 
 ## License
 (C)2015 Takuya Sawada.
