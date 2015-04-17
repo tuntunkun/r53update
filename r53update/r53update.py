@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# R53Update Dynamic DNS Updater v0.5.0
+# R53Update Dynamic DNS Updater
 # (C)2014 Takuya Sawada All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +19,7 @@
 from boto.route53.connection import Route53Connection
 from boto.route53.record import ResourceRecordSets
 from botocore.session import Session
+from pkg_resources import get_distribution
 
 import sys
 import argparse
@@ -144,34 +145,34 @@ class R53UpdateApp(App):
 		def __call__(self, prefix, **kwargs):
 			return (x for x in netifaces.interfaces() if x.startswith(prefix))
 
-	# Resolver Completer
-	class ResolverCompleter(object):
+	# Method Completer
+	class MethodCompleter(object):
 		def __init__(self, parent):
 			self.__parent = parent
 
 		def __call__(self, prefix, **kwargs):
-			return (x for x in self.__parent._gipresolvers if x.startswith(prefix))
+			return (x for x in self.__parent._gipmethods if x.startswith(prefix))
 
 	##
-	# Global IP Resolver
-	class GlobalIP_Resolver(object):
+	# Global IP Detection Method
+	class GlobalIP_DetectionMethod(object):
 		def __init__(self, app):
 			self._app = app
 
 		def resolveGlobalIP():
 			raise NotImplementedError()
 
-	class HTTP_GlobalIP_Resolver(GlobalIP_Resolver):
+	class HTTP_GlobalIP_DetectionMethod(GlobalIP_DetectionMethod):
 		def __init__(self, app, url):
-			super(R53UpdateApp.HTTP_GlobalIP_Resolver, self).__init__(app)
+			super(R53UpdateApp.HTTP_GlobalIP_DetectionMethod, self).__init__(app)
 			self._url = url
 
 		def resolveGlobalIP(self):
 			return urllib2.urlopen(self._url).read().rstrip()
 
-	class DNS_GlobalIP_Resolver(GlobalIP_Resolver):
+	class DNS_GlobalIP_DetectionMethod(GlobalIP_DetectionMethod):
 		def __init__(self, app, hostname, resolvername):
-			super(R53UpdateApp.DNS_GlobalIP_Resolver, self).__init__(app)
+			super(R53UpdateApp.DNS_GlobalIP_DetectionMethod, self).__init__(app)
 			self._hostname = hostname
 			self._resolvername = resolvername
 
@@ -180,9 +181,9 @@ class R53UpdateApp(App):
 			resolver.nameservers = self._app._opts.dns if ns else self.resolveGlobalIP(True)
 			return map(lambda x: x.to_text(), resolver.query(self._resolvername if ns else self._hostname, 'A'))
 
-	class NETIFACES_GlobalIP_Resolver(GlobalIP_Resolver):
+	class NETIFACES_GlobalIP_DetectionMethod(GlobalIP_DetectionMethod):
 		def __init__(self, app):
-			super(R53UpdateApp.NETIFACES_GlobalIP_Resolver, self).__init__(app)
+			super(R53UpdateApp.NETIFACES_GlobalIP_DetectionMethod, self).__init__(app)
 
 		def resolveGlobalIP(self):
 			try:
@@ -209,20 +210,20 @@ class R53UpdateApp(App):
 		self.logger.addHandler(handler)
 
 		# create mapping of global ip resolvers
-		self._gipresolvers = dict()
-		self._gipresolvers['ifconfig.me'] = R53UpdateApp.HTTP_GlobalIP_Resolver(self, 'http://ifconfig.me/ip')
-		self._gipresolvers['ipecho.net'] = R53UpdateApp.HTTP_GlobalIP_Resolver(self, 'http://ipecho.net/plain')
-		self._gipresolvers['icanhazip.com'] = R53UpdateApp.HTTP_GlobalIP_Resolver(self, 'http://icanhazip.com')
-		self._gipresolvers['opendns.com'] = R53UpdateApp.DNS_GlobalIP_Resolver(self, 'myip.opendns.com', 'resolver1.opendns.com')
-		self._gipresolvers['localhost'] = R53UpdateApp.NETIFACES_GlobalIP_Resolver(self)
+		self._gipmethods = dict()
+		self._gipmethods['ifconfig.me'] = R53UpdateApp.HTTP_GlobalIP_DetectionMethod(self, 'http://ifconfig.me/ip')
+		self._gipmethods['ipecho.net'] = R53UpdateApp.HTTP_GlobalIP_DetectionMethod(self, 'http://ipecho.net/plain')
+		self._gipmethods['icanhazip.com'] = R53UpdateApp.HTTP_GlobalIP_DetectionMethod(self, 'http://icanhazip.com')
+		self._gipmethods['opendns.com'] = R53UpdateApp.DNS_GlobalIP_DetectionMethod(self, 'myip.opendns.com', 'resolver1.opendns.com')
+		self._gipmethods['localhost'] = R53UpdateApp.NETIFACES_GlobalIP_DetectionMethod(self)
 
 		# optional argument
 		self._parser.add_argument('--profile', type=str, metavar='PROFILE', default='',
-			help='プロファイル名').completer = R53UpdateApp.ProfileCompleter(self)
-		self._parser.add_argument('--resolver', type=str, metavar='RESOLVER',
-			default='opendns.com', help='グローバルIP 取得方法').completer = R53UpdateApp.ResolverCompleter(self)
+			help='name of a profile to use, or "default" to use the default profile').completer = R53UpdateApp.ProfileCompleter(self)
+		self._parser.add_argument('--method', type=str, metavar='METHOD',
+			default='opendns.com', help='detection method of global IP').completer = R53UpdateApp.MethodCompleter(self)
 		self._parser.add_argument('--iface', type=str, metavar='IFACE',
-			help='インターフェイス名').completer = R53UpdateApp.NetifacesCompleter(self)
+			help='name of network interface').completer = R53UpdateApp.NetifacesCompleter(self)
 		self._parser.add_argument('--dns', nargs='+', type=str, metavar='DNS',
 			default=['8.8.8.8', '8.8.4.4'], help='default: 8.8.8.8, 8.8.4.4')
 		self._parser.add_argument('--ttl', type=int, metavar='TTL',
@@ -249,17 +250,17 @@ class R53UpdateApp(App):
 		if opts.debug:
 			self.logger.setLevel(logging.DEBUG)
 
-		if opts.resolver == 'localhost' and not opts.iface:
+		if opts.method == 'localhost' and not opts.iface:
 			raise Exception("you must specify network interface with '--iface' option")
 
 		if opts.iface:
 			if opts.iface not in netifaces.interfaces():
 				raise Exception("interface name '%s' not found" % opts.iface)
-			self._opts.resolver = 'localhost'
+			self._opts.method = 'localhost'
 
 	def __get_global_ip(self):
-		self.logger.debug('resolving global ip adreess with \'%s\'', self._opts.resolver)
-		gips = self._gipresolvers[self._opts.resolver].resolveGlobalIP()
+		self.logger.debug('resolving global ip adreess with \'%s\'', self._opts.method)
+		gips = self._gipmethods[self._opts.method].resolveGlobalIP()
 		return gips if type(gips) is list else [gips]
 
 	def __get_records_from_host(self, fqdn):
@@ -326,12 +327,16 @@ class R53UpdateApp(App):
 
 	def show_version(self):
 		print >>sys.stderr, "Copyrights (c)2014 Takuya Sawada All rights reserved."
-		print >>sys.stderr, "Route53Update Dynamic DNS Updater 0.5.0"
+		print >>sys.stderr, "Route53Update Dynamic DNS Updater v%s" % get_distribution("r53update").version
 
 
-if __name__ == '__main__':
+
+def main():
 	try:
 		R53UpdateApp(sys.argv)()
 	except Exception, e:
 		print >>sys.stderr, "[31m%s[0m" % e
 		sys.exit(1)
+
+if __name__ == '__main__':
+	main()
