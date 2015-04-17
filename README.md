@@ -47,14 +47,14 @@ r53update www example.com
 | Variable  | Option     | Default    | Description                                 |
 |-----------|------------|------------|---------------------------------------------|
 | PROFILE   | --profile  | default    | profile name which is configured by aws-cli |
-| RESOLVER  | --resolver | localhost  | detection method of global IP               |
+| METHOD    | --method   | localhost  | detection method of global IP               |
 | IFACE     | --iface    | n/a        | name of the network interface               |
 
 ### The method of global IP detection
-You can specify the method of global IP detection by '--resolver' option.
-Available resolver is as follows.
+You can specify the method of global IP detection by '--method' option.  
+Available method is as follows.
 
-| Resolver Name | Method | Multiple IP   | Description                            |
+|  Method Name  | Method | Multiple IP   | Description                            |
 |---------------|--------|---------------|----------------------------------------|
 | opendns.com   | DNS    | not supported |                                        |
 | ifconfig.me   | HTTP   | not supported |                                        |
