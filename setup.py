@@ -29,11 +29,11 @@ setup(
 	license='Apache License 2.0',
 	packages = ['r53update'],
 	install_requires = [
-		'argparse==1.3.0',
+		'argparse2==0.5.0a1',
 		'boto==2.36.0',
 		'awscli==1.7.15',
-		'dnspython==1.12.0',
-		'netifaces==0.10.4'
+		'dnspython==1.14.0',
+		'netifaces==0.10.5'
 	],
 	classifiers = [
 		'Development Status :: 4 - Beta',
