@@ -30,7 +30,6 @@ import dns.exception
 import logging
 import logging.handlers
 import netifaces
-import exceptions
 
 try:
 	import argcomplete
