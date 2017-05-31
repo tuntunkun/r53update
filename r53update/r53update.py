@@ -21,10 +21,10 @@ from boto.route53.connection import Route53Connection
 from boto.route53.record import ResourceRecordSets
 from botocore.session import Session
 from pkg_resources import get_distribution
+from six.moves.urllib import request
 
 import sys
 import argparse
-import urllib2
 import dns.resolver
 import dns.exception
 import logging
@@ -168,7 +168,7 @@ class R53UpdateApp(App):
 			self._url = url
 
 		def resolveGlobalIP(self):
-			return urllib2.urlopen(self._url).read().rstrip()
+			return request.urlopen(self._url).read().rstrip()
 
 	class DNS_GlobalIP_DetectionMethod(GlobalIP_DetectionMethod):
 		def __init__(self, app, hostname, resolvername):
