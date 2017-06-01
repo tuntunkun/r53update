@@ -183,7 +183,7 @@ class R53UpdateApp(App):
 		def resolveGlobalIP(self, ns=False):
 			resolver = dns.resolver.Resolver()
 			resolver.nameservers = self._app._opts.dns if ns else self.resolveGlobalIP(True)
-			return [x.to_text() for x in resolver.query(self._resolvername if ns else self._hostname, 'A')]
+			return [str(x) for x in resolver.query(self._resolvername if ns else self._hostname, 'A')]
 
 	class NETIFACES_GlobalIP_DetectionMethod(GlobalIP_DetectionMethod):
 		def __init__(self, app):
