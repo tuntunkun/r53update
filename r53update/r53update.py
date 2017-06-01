@@ -16,20 +16,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # 
+from __future__ import print_function
 from boto.route53.connection import Route53Connection
 from boto.route53.record import ResourceRecordSets
 from botocore.session import Session
 from pkg_resources import get_distribution
+from six.moves.urllib import request
 
 import sys
 import argparse
-import urllib2
 import dns.resolver
 import dns.exception
 import logging
 import logging.handlers
 import netifaces
-import exceptions
 
 try:
 	import argcomplete
@@ -106,8 +106,8 @@ class App(object):
 		try:
 			self._init()
 			self._run()
-		except Exception, e:
-			print >>sys.stderr, "[31m%s[0m" % e
+		except Exception as e:
+			print("[31m%s[0m" % e, file=sys.stderr)
 			sys.exit(1)
 
 ##
@@ -172,7 +172,7 @@ class R53UpdateApp(App):
 			self._url = url
 
 		def resolveGlobalIP(self):
-			return urllib2.urlopen(self._url).read().rstrip()
+			return request.urlopen(self._url).read().rstrip()
 
 	class DNS_GlobalIP_DetectionMethod(GlobalIP_DetectionMethod):
 		def __init__(self, app, hostname, resolvername):
@@ -183,7 +183,7 @@ class R53UpdateApp(App):
 		def resolveGlobalIP(self, ns=False):
 			resolver = dns.resolver.Resolver()
 			resolver.nameservers = self._app._opts.dns if ns else self.resolveGlobalIP(True)
-			return map(lambda x: x.to_text(), resolver.query(self._resolvername if ns else self._hostname, 'A'))
+			return [x.to_text() for x in resolver.query(self._resolvername if ns else self._hostname, 'A')]
 
 	class NETIFACES_GlobalIP_DetectionMethod(GlobalIP_DetectionMethod):
 		def __init__(self, app):
@@ -195,7 +195,7 @@ class R53UpdateApp(App):
 			except Exception as e:
 				raise Exception("%s: no inet address found" % self._app._opts.iface)
 
-			return map(lambda x: x['addr'], inet)
+			return [x['addr'] for x in inet]
 
 	def _pre_init(self):
 		super(R53UpdateApp, self)._pre_init()
@@ -274,7 +274,7 @@ class R53UpdateApp(App):
 	
 		try:
 			response = resolver.query(fqdn, 'A')
-			results = map(lambda x: x.to_text(), response)
+			results = [x.to_text() for x in response]
 		except dns.resolver.NXDOMAIN:
 			pass
 		except dns.resolver.Timeout:
@@ -330,16 +330,16 @@ class R53UpdateApp(App):
 			self.logger.debug('route53 zone info is up to date')
 
 	def show_version(self):
-		print >>sys.stderr, "Copyrights (c)2014 Takuya Sawada All rights reserved."
-		print >>sys.stderr, "Route53Update Dynamic DNS Updater v%s" % get_distribution("r53update").version
+		print("Copyrights (c)2014 Takuya Sawada All rights reserved.", file=sys.stderr)
+		print("Route53Update Dynamic DNS Updater v%s" % get_distribution("r53update").version, file=sys.stderr)
 
 
 
 def main():
 	try:
 		R53UpdateApp(sys.argv)()
-	except Exception, e:
-		print >>sys.stderr, "[31m%s[0m" % e
+	except Exception as e:
+		print("[31m%s[0m" % e, file=sys.stderr)
 		sys.exit(1)
 
 if __name__ == '__main__':
