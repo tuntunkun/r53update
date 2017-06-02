@@ -21,7 +21,7 @@ from setuptools import setup
 
 setup(
 	name = 'r53update',
-	version='0.5.2',
+	version='0.6.0',
 	description='R53Update Dynamic DNS Updater',
 	author='Takuya Sawada',
 	author_email='takuya@tuntunkun.com',
