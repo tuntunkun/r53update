@@ -21,7 +21,7 @@ from setuptools import setup
 
 setup(
 	name = 'r53update',
-	version='0.5.2',
+	version='0.6.0',
 	description='R53Update Dynamic DNS Updater',
 	author='Takuya Sawada',
 	author_email='takuya@tuntunkun.com',
@@ -29,11 +29,10 @@ setup(
 	license='Apache License 2.0',
 	packages = ['r53update'],
 	install_requires = [
-		'argparse==1.3.0',
-		'boto==2.36.0',
-		'awscli==1.7.15',
-		'dnspython==1.12.0',
-		'netifaces==0.10.4'
+		'argparse2==0.5.0a1',
+		'boto3==1.4.4',
+		'dnspython==1.15.0',
+		'netifaces==0.10.6'
 	],
 	classifiers = [
 		'Development Status :: 4 - Beta',
@@ -41,6 +40,7 @@ setup(
 		'Operating System :: POSIX',
 		'Programming Language :: Python',
 		'Programming Language :: Python :: 2',
+		'Programming Language :: Python :: 3',
 		'Topic :: System :: Networking',
 		'Topic :: Utilities'
 	],

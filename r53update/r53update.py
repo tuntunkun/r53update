@@ -16,20 +16,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # 
-from boto.route53.connection import Route53Connection
-from boto.route53.record import ResourceRecordSets
-from botocore.session import Session
+from __future__ import print_function
+from boto3.session import Session
 from pkg_resources import get_distribution
+from six.moves.urllib import request
 
 import sys
 import argparse
-import urllib2
 import dns.resolver
 import dns.exception
 import logging
 import logging.handlers
 import netifaces
-import exceptions
 
 try:
 	import argcomplete
@@ -106,8 +104,8 @@ class App(object):
 		try:
 			self._init()
 			self._run()
-		except Exception, e:
-			print >>sys.stderr, "[31m%s[0m" % e
+		except Exception as e:
+			print("[31m%s[0m" % e, file=sys.stderr)
 			sys.exit(1)
 
 ##
@@ -117,18 +115,14 @@ class R53UpdateApp(App):
 	# Context
 	class Context(object):
 		def __init__(self, profile=None):
-			self.session = Session()
-			self.session.profile = profile
+			self.session = Session(profile_name=profile)
 
-		def getR53Connection(self):
+		def getR53Client(self):
 			credential = self.session.get_credentials()
 			if not credential:
 				raise RuntimeError("failed to get aws credential")
 
-			return Route53Connection(
-				credential.access_key,
-				credential.secret_key
-			)
+			return self.session.client('route53')
 
 	##
 	# Argument Completer
@@ -172,7 +166,7 @@ class R53UpdateApp(App):
 			self._url = url
 
 		def resolveGlobalIP(self):
-			return urllib2.urlopen(self._url).read().rstrip()
+			return request.urlopen(self._url).read().rstrip()
 
 	class DNS_GlobalIP_DetectionMethod(GlobalIP_DetectionMethod):
 		def __init__(self, app, hostname, resolvername):
@@ -183,7 +177,7 @@ class R53UpdateApp(App):
 		def resolveGlobalIP(self, ns=False):
 			resolver = dns.resolver.Resolver()
 			resolver.nameservers = self._app._opts.dns if ns else self.resolveGlobalIP(True)
-			return map(lambda x: x.to_text(), resolver.query(self._resolvername if ns else self._hostname, 'A'))
+			return [str(x) for x in resolver.query(self._resolvername if ns else self._hostname, 'A')]
 
 	class NETIFACES_GlobalIP_DetectionMethod(GlobalIP_DetectionMethod):
 		def __init__(self, app):
@@ -195,7 +189,7 @@ class R53UpdateApp(App):
 			except Exception as e:
 				raise Exception("%s: no inet address found" % self._app._opts.iface)
 
-			return map(lambda x: x['addr'], inet)
+			return [x['addr'] for x in inet]
 
 	def _pre_init(self):
 		super(R53UpdateApp, self)._pre_init()
@@ -262,6 +256,9 @@ class R53UpdateApp(App):
 				raise Exception("interface name '%s' not found" % opts.iface)
 			self._opts.method = 'localhost'
 
+		if not opts.zone.endswith('.'):
+			opts.zone += '.'
+
 	def __get_global_ip(self):
 		self.logger.debug('resolving global ip adreess with \'%s\'', self._opts.method)
 		gips = self._gipmethods[self._opts.method].resolveGlobalIP()
@@ -274,7 +271,7 @@ class R53UpdateApp(App):
 	
 		try:
 			response = resolver.query(fqdn, 'A')
-			results = map(lambda x: x.to_text(), response)
+			results = [x.to_text() for x in response]
 		except dns.resolver.NXDOMAIN:
 			pass
 		except dns.resolver.Timeout:
@@ -289,22 +286,41 @@ class R53UpdateApp(App):
 	def __update_r53_record(self, zone_name, host_name, gips):
 		fqdn = '%s.%s' % (host_name, zone_name)
 
-		conn = self.ctx.getR53Connection()
-		zone = conn.get_zone(zone_name)
+		r53= self.ctx.getR53Client()
 
-		if zone is None:
+		zones = r53.list_hosted_zones().get('HostedZones', [])
+		zone_id = None
+
+		for zone in zones:
+			if zone['Name'] == zone_name:
+				zone_id = zone['Id']
+				break
+			
+		if zone_id is None:
 			raise Exception("zone '%s' not found" % zone_name)
-		self.logger.debug('R53 zoneid: %s' % zone.id)
+		self.logger.debug('R53 zoneid: %s' % zone_id)
 
-		changes = ResourceRecordSets(conn, zone.id, '')
-		change = changes.add_change('UPSERT', fqdn, 'A', self._opts.ttl)
+		r53.change_resource_record_sets(
+			HostedZoneId = zone_id,
+			ChangeBatch = {
+				'Comment': 'auto update with r53update version v%s' % self.version,
+				'Changes': [{
+					'Action': 'UPSERT',
+					'ResourceRecordSet': {
+						'Name': fqdn,
+						'Type': 'A',
+						'TTL': self._opts.ttl,
+						'ResourceRecords': [
+							{
+								'Value': ip
+							} for ip in gips
+						]
+					}
+				}]
+			}
+		)
 
-		for gip in gips:
-			change.add_value(gip)
-
-		changes.commit()
-
-		self.logger.info('update A records of \'%s\' with \'%s\'' % (fqdn, gip))
+		self.logger.info('update A records of "%s" with %s' % (fqdn, gips))
 
 	def _run(self):
 		fqdn = '%s.%s' % (self._opts.host, self._opts.zone)
@@ -329,17 +345,25 @@ class R53UpdateApp(App):
 		else:
 			self.logger.debug('route53 zone info is up to date')
 
+	@property
+	def version(self):
+		pass
+
+	@version.getter
+	def version(self):
+		return get_distribution('r53update').version
+
 	def show_version(self):
-		print >>sys.stderr, "Copyrights (c)2014 Takuya Sawada All rights reserved."
-		print >>sys.stderr, "Route53Update Dynamic DNS Updater v%s" % get_distribution("r53update").version
+		print("Copyrights (c)2014 Takuya Sawada All rights reserved.", file=sys.stderr)
+		print("Route53Update Dynamic DNS Updater v%s" % self.version, file=sys.stderr)
 
 
 
 def main():
 	try:
 		R53UpdateApp(sys.argv)()
-	except Exception, e:
-		print >>sys.stderr, "[31m%s[0m" % e
+	except Exception as e:
+		print("[31m%s[0m" % e, file=sys.stderr)
 		sys.exit(1)
 
 if __name__ == '__main__':
