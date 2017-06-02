@@ -30,8 +30,7 @@ setup(
 	packages = ['r53update'],
 	install_requires = [
 		'argparse2==0.5.0a1',
-		'boto==2.36.0',
-		'awscli==1.7.15',
+		'boto3==1.4.4',
 		'dnspython==1.14.0',
 		'netifaces==0.10.5'
 	],

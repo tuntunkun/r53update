@@ -17,9 +17,7 @@
 # limitations under the License.
 # 
 from __future__ import print_function
-from boto.route53.connection import Route53Connection
-from boto.route53.record import ResourceRecordSets
-from botocore.session import Session
+from boto3.session import Session
 from pkg_resources import get_distribution
 from six.moves.urllib import request
 
@@ -117,18 +115,14 @@ class R53UpdateApp(App):
 	# Context
 	class Context(object):
 		def __init__(self, profile=None):
-			self.session = Session()
-			self.session.profile = profile
+			self.session = Session(profile_name=profile)
 
-		def getR53Connection(self):
+		def getR53Client(self):
 			credential = self.session.get_credentials()
 			if not credential:
 				raise RuntimeError("failed to get aws credential")
 
-			return Route53Connection(
-				credential.access_key,
-				credential.secret_key
-			)
+			return self.session.client('route53')
 
 	##
 	# Argument Completer
@@ -262,6 +256,9 @@ class R53UpdateApp(App):
 				raise Exception("interface name '%s' not found" % opts.iface)
 			self._opts.method = 'localhost'
 
+		if not opts.zone.endswith('.'):
+			opts.zone += '.'
+
 	def __get_global_ip(self):
 		self.logger.debug('resolving global ip adreess with \'%s\'', self._opts.method)
 		gips = self._gipmethods[self._opts.method].resolveGlobalIP()
@@ -289,22 +286,41 @@ class R53UpdateApp(App):
 	def __update_r53_record(self, zone_name, host_name, gips):
 		fqdn = '%s.%s' % (host_name, zone_name)
 
-		conn = self.ctx.getR53Connection()
-		zone = conn.get_zone(zone_name)
+		r53= self.ctx.getR53Client()
 
-		if zone is None:
+		zones = r53.list_hosted_zones().get('HostedZones', [])
+		zone_id = None
+
+		for zone in zones:
+			if zone['Name'] == zone_name:
+				zone_id = zone['Id']
+				break
+			
+		if zone_id is None:
 			raise Exception("zone '%s' not found" % zone_name)
-		self.logger.debug('R53 zoneid: %s' % zone.id)
+		self.logger.debug('R53 zoneid: %s' % zone_id)
 
-		changes = ResourceRecordSets(conn, zone.id, '')
-		change = changes.add_change('UPSERT', fqdn, 'A', self._opts.ttl)
+		r53.change_resource_record_sets(
+			HostedZoneId = zone_id,
+			ChangeBatch = {
+				'Comment': 'auto update with r53update version v%s' % self.version,
+				'Changes': [{
+					'Action': 'UPSERT',
+					'ResourceRecordSet': {
+						'Name': fqdn,
+						'Type': 'A',
+						'TTL': self._opts.ttl,
+						'ResourceRecords': [
+							{
+								'Value': ip
+							} for ip in gips
+						]
+					}
+				}]
+			}
+		)
 
-		for gip in gips:
-			change.add_value(gip)
-
-		changes.commit()
-
-		self.logger.info('update A records of \'%s\' with \'%s\'' % (fqdn, gip))
+		self.logger.info('update A records of "%s" with %s' % (fqdn, gips))
 
 	def _run(self):
 		fqdn = '%s.%s' % (self._opts.host, self._opts.zone)
@@ -329,9 +345,17 @@ class R53UpdateApp(App):
 		else:
 			self.logger.debug('route53 zone info is up to date')
 
+	@property
+	def version(self):
+		pass
+
+	@version.getter
+	def version(self):
+		return get_distribution('r53update').version
+
 	def show_version(self):
 		print("Copyrights (c)2014 Takuya Sawada All rights reserved.", file=sys.stderr)
-		print("Route53Update Dynamic DNS Updater v%s" % get_distribution("r53update").version, file=sys.stderr)
+		print("Route53Update Dynamic DNS Updater v%s" % self.version, file=sys.stderr)
 
 
 
