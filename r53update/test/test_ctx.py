@@ -17,7 +17,6 @@
 # limitations under the License.
 # 
 from ..r53update import R53UpdateApp
-from boto.route53.connection import Route53Connection
 from botocore import exceptions
 
 import unittest
@@ -81,7 +80,7 @@ class TestAppContext(unittest.TestCase):
 				% (self.profile['default'] + self.profile['test'])
 			)
 		else:
-			self.__open__(path, *args)
+			return self.__open__(path, *args, **kwargs)
 
 	# check credential with environment variable
 	def test_env(self):
@@ -101,53 +100,48 @@ class TestAppContext(unittest.TestCase):
 			self.assertEqual(creds.access_key, AWS_ACCESS_KEY)
 			self.assertEqual(creds.secret_key, AWS_SECRET_KEY)
 
-			conn = ctx.getR53Connection()
-			self.assertNotEqual(conn, None)
-			self.assertIsInstance(conn, Route53Connection)
+			self.assertNotEqual(ctx.getR53Client(), None)
 
 	# check credential with profile [default] (implicit)
 	def test_profile_default_implicit(self):
-		with (mock.patch('os.environ.get', return_value=None)):
-			with mock.patch('os.path.isfile', side_effect=self.mock_isfile):
-				with mock.patch('%s.open' % self.builtins, side_effect=self.mock_file):
-					AWS_ACCESS_KEY, AWS_SECRET_KEY = self.profile['default']
-					ctx = R53UpdateApp.Context()
+		with mock.patch('os.path.isfile', side_effect=self.mock_isfile):
+			with mock.patch('%s.open' % self.builtins, side_effect=self.mock_file):
+				AWS_ACCESS_KEY, AWS_SECRET_KEY = self.profile['default']
+				ctx = R53UpdateApp.Context()
 
-					creds = ctx.session.get_credentials()
-					self.assertNotEqual(creds, None)
+				creds = ctx.session.get_credentials()
+				self.assertNotEqual(creds, None)
 
-					self.assertEqual(creds.access_key, AWS_ACCESS_KEY)
-					self.assertEqual(creds.secret_key, AWS_SECRET_KEY)
+				self.assertEqual(creds.access_key, AWS_ACCESS_KEY)
+				self.assertEqual(creds.secret_key, AWS_SECRET_KEY)
 
-					self.assertIsInstance(ctx.getR53Connection(), Route53Connection)
+				self.assertNotEqual(ctx.getR53Client(), None)
 			
 	# check credential with profile [default] (explicit)
 	def test_profile_default_explicit(self):
-		with (mock.patch('os.environ.get', return_value=None)):
-			with mock.patch('os.path.isfile', side_effect=self.mock_isfile):
-				with mock.patch('%s.open' % self.builtins, side_effect=self.mock_file):
-					AWS_ACCESS_KEY, AWS_SECRET_KEY = self.profile['default']
-					ctx = R53UpdateApp.Context('default')
+		with mock.patch('os.path.isfile', side_effect=self.mock_isfile):
+			with mock.patch('%s.open' % self.builtins, side_effect=self.mock_file):
+				AWS_ACCESS_KEY, AWS_SECRET_KEY = self.profile['default']
+				ctx = R53UpdateApp.Context('default')
 
-					creds = ctx.session.get_credentials()
-					self.assertEqual(creds.access_key, AWS_ACCESS_KEY)
-					self.assertEqual(creds.secret_key, AWS_SECRET_KEY) 
+				creds = ctx.session.get_credentials()
+				self.assertEqual(creds.access_key, AWS_ACCESS_KEY)
+				self.assertEqual(creds.secret_key, AWS_SECRET_KEY)
 
-					self.assertIsInstance(ctx.getR53Connection(), Route53Connection)
+				self.assertNotEqual(ctx.getR53Client(), None)
 
 	# check credential with profile [test]
 	def test_profile_test(self):
-		with (mock.patch('os.environ.get', return_value=None)):
-			with mock.patch('os.path.isfile', side_effect=self.mock_isfile):
-				with mock.patch('%s.open' % self.builtins, side_effect=self.mock_file):
-					AWS_ACCESS_KEY, AWS_SECRET_KEY = self.profile['test']
-					ctx = R53UpdateApp.Context('test')
+		with mock.patch('os.path.isfile', side_effect=self.mock_isfile):
+			with mock.patch('%s.open' % self.builtins, side_effect=self.mock_file):
+				AWS_ACCESS_KEY, AWS_SECRET_KEY = self.profile['test']
+				ctx = R53UpdateApp.Context('test')
 
-					creds = ctx.session.get_credentials()
-					self.assertEqual(creds.access_key, AWS_ACCESS_KEY)
-					self.assertEqual(creds.secret_key, AWS_SECRET_KEY)
+				creds = ctx.session.get_credentials()
+				self.assertEqual(creds.access_key, AWS_ACCESS_KEY)
+				self.assertEqual(creds.secret_key, AWS_SECRET_KEY)
 
-					self.assertIsInstance(ctx.getR53Connection(), Route53Connection)
+				self.assertNotEqual(ctx.getR53Client(), None)
 
 	# check not exist profile cause `ProfileNotFound` exception
 	def test_profile_not_found(self):
@@ -156,5 +150,5 @@ class TestAppContext(unittest.TestCase):
 				with mock.patch('%s.open' % self.builtins, side_effect=self.mock_file):
 					with self.assertRaises(exceptions.ProfileNotFound):
 						ctx = R53UpdateApp.Context('notexist')
-						ctx.getR53Connection()
+						ctx.getR53Client()
 
