@@ -31,8 +31,8 @@ setup(
 	install_requires = [
 		'argparse2==0.5.0a1',
 		'boto3==1.4.4',
-		'dnspython==1.14.0',
-		'netifaces==0.10.5'
+		'dnspython==1.15.0',
+		'netifaces==0.10.6'
 	],
 	classifiers = [
 		'Development Status :: 4 - Beta',
