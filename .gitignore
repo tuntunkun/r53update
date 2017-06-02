@@ -1,0 +1,5 @@
+.tox/
+local/
+
+*.egg-info/
+*.pyc
