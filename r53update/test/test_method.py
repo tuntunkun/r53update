@@ -45,7 +45,7 @@ class TestMethod(unittest.TestCase):
 
 		with mock.patch.object(dns.resolver.Resolver, 'query', return_value=RETVAL) as query:
 			method = R53UpdateApp.DNS_GlobalIP_DetectionMethod(app, 'myip.opendns.com', 'resolver1.opendns.com')
-			assert set(method.resolveGlobalIP()) == set(RETVAL)
+			self.assertEqual(set(method.resolveGlobalIP()), set(RETVAL))
 			query.has_calls(['resolver1.opendns.com', 'myip.opendns.com'])
 
 	def test_NETIFACES_Method(self):
@@ -64,5 +64,5 @@ class TestMethod(unittest.TestCase):
 
 		with mock.patch('netifaces.ifaddresses', return_value=RETVAL) as ifaddresses:
 			method = R53UpdateApp.NETIFACES_GlobalIP_DetectionMethod(app)
-			assert set(method.resolveGlobalIP()) == set([x['addr'] for x in RETVAL[netifaces.AF_INET]])
+			self.assertEqual(set(method.resolveGlobalIP()), set([x['addr'] for x in RETVAL[netifaces.AF_INET]]))
 			ifaddresses.assert_called_once_with(app._opts.iface)

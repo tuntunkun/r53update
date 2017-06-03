@@ -42,7 +42,7 @@ class TestAppContext(fake_filesystem_unittest.TestCase):
 
 		# create virtual file
 		self.fs.CreateFile(os.path.expanduser('~/.aws/config'))
-		assert os.path.isfile(os.path.expanduser('~/.aws/config'))
+		self.assertTrue(os.path.isfile(os.path.expanduser('~/.aws/config')))
 
 		# initialize aws config
 		with open(os.path.expanduser('~/.aws/config'), 'wt') as config:
