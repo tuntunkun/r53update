@@ -1,6 +1,6 @@
 # R53Update command line utility
 [![Github release](https://img.shields.io/github/release/tuntunkun/r53update.svg)](https://github.com/tuntunkun/r53update/releases)
-[![Python version](https://img.shields.io/badge/python-2.7%2C%203.3%2C%203.4%2C%203.5%2C%203.6-green.svg)](#)
+[![Python version](https://img.shields.io/badge/python-2.6%2C%202.7%2C%203.3%2C%203.4%2C%203.5%2C%203.6-green.svg)](#)
 [![Requirements Status](https://requires.io/github/tuntunkun/r53update/requirements.svg)](https://requires.io/github/tuntunkun/r53update/requirements)
 [![Build Status](https://travis-ci.org/tuntunkun/r53update.svg?branch=develop)](https://travis-ci.org/tuntunkun/r53update)
 [![Hex.pm](https://img.shields.io/hexpm/l/plug.svg)](https://raw.githubusercontent.com/tuntunkun/r53update/master/LICENSE)
