@@ -17,17 +17,20 @@
 # limitations under the License.
 # 
 from ..r53update import R53UpdateApp
-from botocore import exceptions
+from pyfakefs import fake_filesystem_unittest
 
-import unittest
+import botocore
 import string
 import random
 import mock
 import os
 import io
 
-class TestAppContext(unittest.TestCase):
+class TestAppContext(fake_filesystem_unittest.TestCase):
 	def setUp(self):
+		# setup fakefs
+		self.setUpPyfakefs()
+
 		# keep original function for reference from mock function
 		self.__open__ = open
 		self.__isfile__ = os.path.isfile
@@ -45,26 +48,16 @@ class TestAppContext(unittest.TestCase):
 			'test': (self.randomstr(20), self.randomstr(40))
 		}
 
-	def randomstr(self, length):
-		return ''.join([random.choice(string.digits + string.ascii_uppercase) for i in range(12)])
+		# mount botocore packages directory for some resources
+		self.fs.add_real_directory(os.path.dirname(botocore.__file__))
 
-	##
-	# boto core checks if config file exists before load it.
-	# in order to use mock file instead of actual config file,
-	# we must use this mock function which always return True
-	# if specified path is the config file.
-	#
-	# Ref) https://github.com/boto/botocore/blob/develop/botocore/configloader.py
-	#
-	def mock_isfile(self, path):
-		if path == os.path.expanduser('~/.aws/config'):
-			return True
-		else:
-			return self.__isfile__(path)
+		# create virtual file
+		self.fs.CreateFile(os.path.expanduser('~/.aws/config'))
+		assert os.path.isfile(os.path.expanduser('~/.aws/config'))
 
-	def mock_file(self, path, *args, **kwargs):
-		if path == os.path.expanduser('~/.aws/config'):
-			return io.StringIO(
+		# initialize aws config
+		with open(os.path.expanduser('~/.aws/config'), 'wt') as config:
+			config.write(
 				u"[default]\n"
 				u"aws_access_key_id = %s\n"
 				u"aws_secret_access_key =  %s\n"
@@ -79,8 +72,9 @@ class TestAppContext(unittest.TestCase):
 
 				% (self.profile['default'] + self.profile['test'])
 			)
-		else:
-			return self.__open__(path, *args, **kwargs)
+
+	def randomstr(self, length):
+		return ''.join([random.choice(string.digits + string.ascii_uppercase) for i in range(12)])
 
 	# check credential with environment variable
 	def test_env(self):
@@ -104,51 +98,42 @@ class TestAppContext(unittest.TestCase):
 
 	# check credential with profile [default] (implicit)
 	def test_profile_default_implicit(self):
-		with mock.patch('os.path.isfile', side_effect=self.mock_isfile):
-			with mock.patch('%s.open' % self.builtins, side_effect=self.mock_file):
-				AWS_ACCESS_KEY, AWS_SECRET_KEY = self.profile['default']
-				ctx = R53UpdateApp.Context()
+		AWS_ACCESS_KEY, AWS_SECRET_KEY = self.profile['default']
+		ctx = R53UpdateApp.Context()
 
-				creds = ctx.session.get_credentials()
-				self.assertNotEqual(creds, None)
+		creds = ctx.session.get_credentials()
+		self.assertNotEqual(creds, None)
 
-				self.assertEqual(creds.access_key, AWS_ACCESS_KEY)
-				self.assertEqual(creds.secret_key, AWS_SECRET_KEY)
+		self.assertEqual(creds.access_key, AWS_ACCESS_KEY)
+		self.assertEqual(creds.secret_key, AWS_SECRET_KEY)
 
-				self.assertNotEqual(ctx.getR53Client(), None)
+		self.assertNotEqual(ctx.getR53Client(), None)
 			
 	# check credential with profile [default] (explicit)
 	def test_profile_default_explicit(self):
-		with mock.patch('os.path.isfile', side_effect=self.mock_isfile):
-			with mock.patch('%s.open' % self.builtins, side_effect=self.mock_file):
-				AWS_ACCESS_KEY, AWS_SECRET_KEY = self.profile['default']
-				ctx = R53UpdateApp.Context('default')
+		AWS_ACCESS_KEY, AWS_SECRET_KEY = self.profile['default']
+		ctx = R53UpdateApp.Context('default')
 
-				creds = ctx.session.get_credentials()
-				self.assertEqual(creds.access_key, AWS_ACCESS_KEY)
-				self.assertEqual(creds.secret_key, AWS_SECRET_KEY)
+		creds = ctx.session.get_credentials()
+		self.assertEqual(creds.access_key, AWS_ACCESS_KEY)
+		self.assertEqual(creds.secret_key, AWS_SECRET_KEY)
 
-				self.assertNotEqual(ctx.getR53Client(), None)
+		self.assertNotEqual(ctx.getR53Client(), None)
 
 	# check credential with profile [test]
 	def test_profile_test(self):
-		with mock.patch('os.path.isfile', side_effect=self.mock_isfile):
-			with mock.patch('%s.open' % self.builtins, side_effect=self.mock_file):
-				AWS_ACCESS_KEY, AWS_SECRET_KEY = self.profile['test']
-				ctx = R53UpdateApp.Context('test')
+		AWS_ACCESS_KEY, AWS_SECRET_KEY = self.profile['test']
+		ctx = R53UpdateApp.Context('test')
 
-				creds = ctx.session.get_credentials()
-				self.assertEqual(creds.access_key, AWS_ACCESS_KEY)
-				self.assertEqual(creds.secret_key, AWS_SECRET_KEY)
+		creds = ctx.session.get_credentials()
+		self.assertEqual(creds.access_key, AWS_ACCESS_KEY)
+		self.assertEqual(creds.secret_key, AWS_SECRET_KEY)
 
-				self.assertNotEqual(ctx.getR53Client(), None)
+		self.assertNotEqual(ctx.getR53Client(), None)
 
 	# check not exist profile cause `ProfileNotFound` exception
 	def test_profile_not_found(self):
-		with (mock.patch('os.environ.get', return_value=None)):
-			with mock.patch('os.path.isfile', side_effect=self.mock_isfile):
-				with mock.patch('%s.open' % self.builtins, side_effect=self.mock_file):
-					with self.assertRaises(exceptions.ProfileNotFound):
-						ctx = R53UpdateApp.Context('notexist')
-						ctx.getR53Client()
+		with self.assertRaises(botocore.exceptions.ProfileNotFound):
+			ctx = R53UpdateApp.Context('notexist')
+			ctx.getR53Client()
 
