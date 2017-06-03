@@ -24,22 +24,11 @@ import string
 import random
 import mock
 import os
-import io
 
 class TestAppContext(fake_filesystem_unittest.TestCase):
 	def setUp(self):
 		# setup fakefs
 		self.setUpPyfakefs()
-
-		# keep original function for reference from mock function
-		self.__open__ = open
-		self.__isfile__ = os.path.isfile
-
-		try:
-			import __builtin__
-			self.builtins = '__builtin__'
-		except:
-			self.builtins = 'builtins'
 
 		# key-pair test data
 		self.profile = {
