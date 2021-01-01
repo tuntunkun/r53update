@@ -289,19 +289,17 @@ class R53UpdateApp(App):
 		r53= self.ctx.getR53Client()
 
 		zones = r53.list_hosted_zones().get('HostedZones', [])
-		zone_id = None
 
 		for zone in zones:
 			if zone['Name'] == zone_name:
-				zone_id = zone['Id']
 				break
-			
-		if zone_id is None:
+		else:
 			raise Exception("zone '%s' not found" % zone_name)
-		self.logger.debug('R53 zoneid: %s' % zone_id)
+
+		self.logger.debug('R53 zoneid: %s' % zone['Id'])
 
 		r53.change_resource_record_sets(
-			HostedZoneId = zone_id,
+			HostedZoneId = zone['Id'],
 			ChangeBatch = {
 				'Comment': 'auto update with r53update version v%s' % self.version,
 				'Changes': [{
