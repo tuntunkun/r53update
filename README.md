@@ -19,6 +19,13 @@ R53Update is a command line utility for Amazon Route 53 which is one of the AWS 
 To create Amazon Route 53 hosted zone, please refer to the following url.  
 http://docs.aws.amazon.com/Route53/latest/DeveloperGuide/CreatingHostedZone.html
 
+### Run on Docker Container
+If you already configured aws credentials properly in `~/.aws`, Just type following command.
+
+```
+docker run --rm -it -v ~/.aws:/root/.aws ghcr.io/tuntunkun/r53update www example.com
+```
+
 ### Python & PIP
 If you want to install python and pip via binary installer, you can generally do so through the basic package-management tool that comes with your distribution.
 If you're on Debian-based distribution, you can use apt-get:
