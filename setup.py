@@ -32,7 +32,7 @@ setup(
 		'argparse2==0.5.0a1',
 		'boto3==1.16.47',
 		'dnspython==2.0.0',
-		'netifaces==0.10.6'
+		'netifaces==0.10.9'
 	],
 	classifiers = [
 		'License :: OSI Approved :: Apache Software License',
