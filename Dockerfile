@@ -1,5 +1,5 @@
 # Dockerfile
-FROM alpine:3.5
+FROM python:3.9-alpine
 MAINTAINER Takuya Sawada <takuya@tuntunkun.com>
 
 ARG AWS_ACCESS_KEY
@@ -10,13 +10,16 @@ ENV AWS_ACCESS_KEY_ID ${AWS_ACCESS_KEY}
 ENV AWS_SECRET_ACCESS_KEY ${AWS_SECRET_KEY}
 ENV AWS_DEFAULT_REGION ${AWS_REGION}
 
-RUN apk --update add python py-pip \
-        && apk add --virtual .build-deps git gcc python-dev musl-dev linux-headers \
+ADD setup.py /usr/src
+ADD r53update /usr/src/r53update
 
-	&& pip install --upgrade pip \
-        && pip install git+https://github.com/tuntunkun/r53update@develop \
+RUN apk add --virtual .build-deps gcc python3-dev musl-dev linux-headers
 
-        && apk del --purge .build-deps \
-        && rm -rf /var/apk/cache/*
+RUN pip install --upgrade pip
+RUN pip install /usr/src
+
+RUN apk del --purge .build-deps
+
+RUN rm -rf /usr/src/* /var/apk/cache/*
 
 ENTRYPOINT ["r53update"]
