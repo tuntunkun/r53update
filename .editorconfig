@@ -9,6 +9,10 @@ insert_final_newline = true
 trim_trailling_whitespace = true
 charset = utf-8
 
+[*.yml]
+indent_style = space
+indent_size = 2
+
 [*.py]
 indent_style = tab
 indent_size = 2
